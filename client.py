@@ -2,75 +2,79 @@ import tkinter as tk
 from PIL import Image, ImageTk
 import socket
 import pyaudio
-import wave
 import threading
-import time
+import wave
 
-def start_recording():
-    CHUNK = 1024
-    FORMAT = pyaudio.paInt16
-    CHANNELS = 1
-    RATE = 44100
-    RECORD_SECONDS = 5
-    WAVE_OUTPUT_FILENAME = "output.wav"
+class DoorbellClient:
+    def __init__(self, server_address):
+        self.server_address = server_address
+        self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.audio = pyaudio.PyAudio()
+        self.stream = None
+        self.CHUNK = 1024
+        self.FORMAT = pyaudio.paInt16
+        self.CHANNELS = 1
+        self.RATE = 44100
 
-    # Show recording status
-    status_label.config(text="Recording in progress...", fg="blue")
+    def connect_to_server(self):
+        self.client_socket.connect(self.server_address)
 
-    # Start recording
-    audio = pyaudio.PyAudio()
-    stream = audio.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True, frames_per_buffer=CHUNK)
-    frames = []
+    def start_recording(self):
+        self.client_socket.sendall(b'Doorbell pressed')  # Send signal to server
+        frames = []
+        print("Recording...")
+        self.stream = self.audio.open(format=self.FORMAT, channels=self.CHANNELS, rate=self.RATE,
+                                      input=True, frames_per_buffer=self.CHUNK)
+        for _ in range(0, int(self.RATE / self.CHUNK * 5)):  # Record for 5 seconds
+            data = self.stream.read(self.CHUNK)
+            frames.append(data)
+        print("Finished recording.")
 
-    print("Recording...")
-    for _ in range(0, int(RATE / CHUNK * RECORD_SECONDS)):
-        data = stream.read(CHUNK)
-        frames.append(data)
+        # Convert audio frames to bytes and send to server
+        audio_bytes = b''.join(frames)
+        self.send_audio(audio_bytes)
 
-    print("Finished recording.")
+    def send_audio(self, audio_data):
+        self.client_socket.sendall(audio_data)
 
-    # Stop recording and close stream
-    stream.stop_stream()
-    stream.close()
-    audio.terminate()
+    def close(self):
+        if self.stream:
+            self.stream.stop_stream()
+            self.stream.close()
+        self.audio.terminate()
+        self.client_socket.close()
 
-    # Convert audio frames to bytes and send to server
-    audio_bytes = b''.join(frames)
-    send_audio(audio_bytes)
+class DoorbellApp:
+    def __init__(self, root, client):
+        self.root = root
+        self.client = client
 
-    # Reset recording status
-    status_label.config(text="Press doorbell to record", fg="black")
+        # Load doorbell image
+        doorbell_img = Image.open("doorbell_icon.png")
+        doorbell_img = doorbell_img.resize((200, 200), Image.ANTIALIAS)  # Resize image
+        self.doorbell_icon = ImageTk.PhotoImage(doorbell_img)
 
-def send_audio(audio_data):
-    # Set up socket
-    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client_socket.connect(('192.168.1.7', 5678))  # Update server IP address here
+        # Doorbell button
+        self.doorbell_button = tk.Button(root, image=self.doorbell_icon, command=self.doorbell_pressed)
+        self.doorbell_button.pack(pady=20, fill=tk.BOTH, expand=True)
 
-    # Send audio data to server
-    client_socket.sendall(audio_data)
-
-    # Close client socket
-    client_socket.close()
+    def doorbell_pressed(self):
+        # Start recording when doorbell pressed
+        threading.Thread(target=self.client.start_recording).start()
 
 def main():
     root = tk.Tk()
     root.attributes('-fullscreen', True)  # Make UI full screen
     root.title("Doorbell UI")
 
-    # Load doorbell image
-    doorbell_img = Image.open("doorbell_icon.png")
-    doorbell_img = doorbell_img.resize((200, 200), Image.ANTIALIAS)  # Resize image
-    doorbell_icon = ImageTk.PhotoImage(doorbell_img)
+    server_address = ('192.168.1.7', 5678)  # Update server IP address here
+    doorbell_client = DoorbellClient(server_address)
+    doorbell_client.connect_to_server()
 
-    doorbell_button = tk.Button(root, image=doorbell_icon, command=start_recording)
-    doorbell_button.pack(pady=20, fill=tk.BOTH, expand=True)
-
-    # Recording status label
-    global status_label
-    status_label = tk.Label(root, text="Press doorbell to record", fg="black")
-    status_label.pack(pady=10)
-
+    app = DoorbellApp(root, doorbell_client)
     root.mainloop()
+
+    doorbell_client.close()
 
 if __name__ == "__main__":
     main()
