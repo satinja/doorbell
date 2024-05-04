@@ -3,7 +3,7 @@ import winsound  # For playing audio on Windows
 
 # Set up socket
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server_socket.bind(('0.0.0.0', 12345))  # Change port number if needed
+server_socket.bind(('0.0.0.0', 5678))  # Change port number if needed
 server_socket.listen(1)
 
 print("Server is listening...")
@@ -19,7 +19,6 @@ while True:
         # Play audio
         winsound.PlaySound("bell_sound.wav", winsound.SND_FILENAME)
         client_socket.close()
-        break
 
 # Close server socket
 server_socket.close()
