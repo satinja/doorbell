@@ -1,4 +1,5 @@
 import tkinter as tk
+from PIL import Image, ImageTk
 import socket
 
 def doorbell_pressed():
@@ -14,10 +15,16 @@ def doorbell_pressed():
 
 def main():
     root = tk.Tk()
-    root.title("Doorbell UI")
+    root.attributes('-fullscreen', True)  # Make UI full screen
+    root.title("Doorbell")
 
-    doorbell_button = tk.Button(root, text="Press Doorbell", command=doorbell_pressed)
-    doorbell_button.pack(pady=20)
+    # Load doorbell image
+    doorbell_img = Image.open("doorbell_icon.png")
+    doorbell_img = doorbell_img.resize((200, 200), Image.ANTIALIAS)  # Resize image
+    doorbell_icon = ImageTk.PhotoImage(doorbell_img)
+
+    doorbell_button = tk.Button(root, image=doorbell_icon, command=doorbell_pressed)
+    doorbell_button.pack(pady=20, fill=tk.BOTH, expand=True)
 
     root.mainloop()
 
