@@ -1,12 +1,19 @@
 import socket
 import pyaudio
+import threading
+import wave
 
-def play_audio(data):
-    audio = pyaudio.PyAudio()
-    stream = audio.open(format=pyaudio.paInt16, channels=1, rate=44100, output=True)
-    stream.write(data)
-    stream.close()
-    audio.terminate()
+def handle_client(client_socket, audio_stream):
+    while True:
+        # Receive data from client
+        data = client_socket.recv(1024)
+        if not data:
+            break
+
+        # Play received audio data
+        audio_stream.write(data)
+
+    client_socket.close()
 
 def main():
     # Set up socket
@@ -16,26 +23,26 @@ def main():
 
     print("Server is listening...")
 
+    # Initialize PyAudio stream
+    audio = pyaudio.PyAudio()
+    audio_stream = audio.open(format=pyaudio.paInt16,
+                              channels=1,
+                              rate=44100,
+                              output=True)
+
     while True:
         client_socket, addr = server_socket.accept()
         print(f"Connection from {addr} established.")
 
-        # Receive data from client
-        data = b''
-        while True:
-            chunk = client_socket.recv(1024)
-            if not chunk:
-                break
-            data += chunk
+        # Start a new thread to handle the client
+        client_thread = threading.Thread(target=handle_client, args=(client_socket, audio_stream))
+        client_thread.start()
 
-        if data:
-            print("Received audio data.")
-            play_audio(data)
-
-        client_socket.close()
-
-    # Close server socket
+    # Cleanup
     server_socket.close()
+    audio_stream.stop_stream()
+    audio_stream.close()
+    audio.terminate()
 
 if __name__ == "__main__":
     main()
