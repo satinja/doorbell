@@ -14,8 +14,8 @@ def start_recording():
     RECORD_SECONDS = 5
     WAVE_OUTPUT_FILENAME = "output.wav"
 
-    # Show recording progress bar
-    progress_bar.start()
+    # Show recording status
+    status_label.config(text="Recording in progress...", fg="blue")
 
     # Start recording
     audio = pyaudio.PyAudio()
@@ -38,8 +38,8 @@ def start_recording():
     audio_bytes = b''.join(frames)
     send_audio(audio_bytes)
 
-    # Hide progress bar
-    progress_bar.stop()
+    # Reset recording status
+    status_label.config(text="Press doorbell to record", fg="black")
 
 def send_audio(audio_data):
     # Set up socket
@@ -53,8 +53,6 @@ def send_audio(audio_data):
     client_socket.close()
 
 def main():
-    global progress_bar
-
     root = tk.Tk()
     root.attributes('-fullscreen', True)  # Make UI full screen
     root.title("Doorbell UI")
@@ -67,9 +65,10 @@ def main():
     doorbell_button = tk.Button(root, image=doorbell_icon, command=start_recording)
     doorbell_button.pack(pady=20, fill=tk.BOTH, expand=True)
 
-    # Progress bar
-    progress_bar = tk.ttk.Progressbar(root, orient="horizontal", length=200, mode="indeterminate")
-    progress_bar.pack(pady=10)
+    # Recording status label
+    global status_label
+    status_label = tk.Label(root, text="Press doorbell to record", fg="black")
+    status_label.pack(pady=10)
 
     root.mainloop()
 
